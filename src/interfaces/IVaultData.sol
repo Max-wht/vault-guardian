@@ -9,6 +9,7 @@ interface IVaultData {
      * @notice aaveAllocation is the ratio of tokens to provide as lending amount in Aave v3
      */
     struct AllocationData {
+        //@follow if the sum != 100. what happens?
         uint256 holdAllocation; // hodl
         uint256 uniswapAllocation; // Simmilar to T-Swap
         uint256 aaveAllocation; // Similar to Thunder Loan

@@ -20,7 +20,20 @@ interface IVaultShares is IERC4626, IVaultData {
         address usdc;
     }
 
-    function updateHoldingAllocation(AllocationData memory tokenAllocationData) external;
+    function updateHoldingAllocation(
+        AllocationData memory tokenAllocationData
+    ) external;
 
     function setNotActive() external;
+
+    //@note IERC4626 is the OpenZeppelin standard interface for ERC-4626
+    /**
+     * 这是 OpenZeppelin 的 ERC-4626 标准接口，提供了：
+     *function deposit() - 存入资产，获得份额代币
+     * function withdraw() - 赎回份额代币，取回资产
+     * function mint() - 铸造指定数量的份额代币
+     * function redeem() - 销毁份额代币，取回资产
+     * function totalAssets() - 金库管理的总资产
+     * function convertToShares() / convertToAssets() - 份额和资产的转换
+     */
 }

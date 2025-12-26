@@ -8,7 +8,13 @@ import {UniswapAdapter} from "./investableUniverseAdapters/UniswapAdapter.sol";
 import {DataTypes} from "../vendor/DataTypes.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, ReentrancyGuard {
+contract VaultShares is
+    ERC4626,
+    IVaultShares,
+    AaveAdapter,
+    UniswapAdapter,
+    ReentrancyGuard
+{
     error VaultShares__DepositMoreThanMax(uint256 amount, uint256 max);
     error VaultShares__NotGuardian();
     error VaultShares__NotVaultGuardianContract();
@@ -54,6 +60,7 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
         _;
     }
 
+    //@note the VaultShares is not active
     modifier isActive() {
         if (!s_isActive) {
             revert VaultShares__NotActive();
@@ -66,7 +73,8 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
      * @notice removes all supplied liquidity from Uniswap and supplied lending amount from Aave and then re-invests it back into them only if the vault is active
      */
     modifier divestThenInvest() {
-        uint256 uniswapLiquidityTokensBalance = i_uniswapLiquidityToken.balanceOf(address(this));
+        uint256 uniswapLiquidityTokensBalance = i_uniswapLiquidityToken
+            .balanceOf(address(this));
         uint256 aaveAtokensBalance = i_aaveAToken.balanceOf(address(this));
 
         // Divest
@@ -84,17 +92,26 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
             _investFunds(IERC20(asset()).balanceOf(address(this)));
         }
     }
+
     // slither-disable-end reentrancy-eth
 
     /*//////////////////////////////////////////////////////////////
                                FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     // We use a struct to avoid stack too deep errors. Thanks Solidity
-    constructor(ConstructorData memory constructorData)
-        ERC4626(constructorData.asset)
-        ERC20(constructorData.vaultName, constructorData.vaultSymbol)
+    constructor(
+        ConstructorData memory constructorData
+    )
+        ERC4626(constructorData.asset) //@note IERC20
+        //@note vault ERC20 represent the shares of a user assets deposited in this vault
+        ERC20(constructorData.vaultName, constructorData.vaultSymbol) //@note string
         AaveAdapter(constructorData.aavePool)
-        UniswapAdapter(constructorData.uniswapRouter, constructorData.weth, constructorData.usdc)
+        //? where is the LINK
+        UniswapAdapter(
+            constructorData.uniswapRouter,
+            constructorData.weth,
+            constructorData.usdc
+        )
     {
         i_guardian = constructorData.guardian;
         i_guardianAndDaoCut = constructorData.guardianAndDaoCut;
@@ -103,15 +120,24 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
         updateHoldingAllocation(constructorData.allocationData);
 
         // External calls
-        i_aaveAToken =
-            IERC20(IPool(constructorData.aavePool).getReserveData(address(constructorData.asset)).aTokenAddress);
-        i_uniswapLiquidityToken = IERC20(i_uniswapFactory.getPair(address(constructorData.asset), address(i_weth)));
+        i_aaveAToken = IERC20(
+            IPool(constructorData.aavePool)
+                .getReserveData(address(constructorData.asset))
+                .aTokenAddress
+        );
+        i_uniswapLiquidityToken = IERC20(
+            i_uniswapFactory.getPair(
+                address(constructorData.asset),
+                address(i_weth)
+            )
+        );
     }
 
     /**
      * @notice Sets the vault as not active, which means that the vault guardian has quit
      * @notice Users will not be able to invest in this vault, however, they will be able to withdraw their deposited assets
      */
+    //? how x Vault :: y Guardian what is x and y?
     function setNotActive() public onlyVaultGuardians isActive {
         s_isActive = false;
         emit NoLongerActive();
@@ -121,9 +147,12 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
      * @notice Allows Vault Guardians to update their allocation ratio (and thus, their strategy of investment)
      * @param tokenAllocationData The new allocation data
      */
-    function updateHoldingAllocation(AllocationData memory tokenAllocationData) public onlyVaultGuardians isActive {
-        uint256 totalAllocation = tokenAllocationData.holdAllocation + tokenAllocationData.uniswapAllocation
-            + tokenAllocationData.aaveAllocation;
+    function updateHoldingAllocation(
+        AllocationData memory tokenAllocationData
+    ) public onlyVaultGuardians isActive {
+        uint256 totalAllocation = tokenAllocationData.holdAllocation +
+            tokenAllocationData.uniswapAllocation +
+            tokenAllocationData.aaveAllocation;
         if (totalAllocation != ALLOCATION_PRECISION) {
             revert VaultShares__AllocationNot100Percent(totalAllocation);
         }
@@ -137,7 +166,12 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
      * @notice Mints shares to the DAO and the guardian as a fee
      */
     // slither-disable-start reentrancy-eth
-    function deposit(uint256 assets, address receiver)
+    //@note user call it after they know the address of vault
+    //@note user deposit assets
+    function deposit(
+        uint256 assets,
+        address receiver
+    )
         public
         override(ERC4626, IERC4626)
         isActive
@@ -145,7 +179,10 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
         returns (uint256)
     {
         if (assets > maxDeposit(receiver)) {
-            revert VaultShares__DepositMoreThanMax(assets, maxDeposit(receiver));
+            revert VaultShares__DepositMoreThanMax(
+                assets,
+                maxDeposit(receiver)
+            );
         }
 
         uint256 shares = previewDeposit(assets);
@@ -163,8 +200,10 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
      * @param assets The amount of assets to invest
      */
     function _investFunds(uint256 assets) private {
-        uint256 uniswapAllocation = (assets * s_allocationData.uniswapAllocation) / ALLOCATION_PRECISION;
-        uint256 aaveAllocation = (assets * s_allocationData.aaveAllocation) / ALLOCATION_PRECISION;
+        uint256 uniswapAllocation = (assets *
+            s_allocationData.uniswapAllocation) / ALLOCATION_PRECISION;
+        uint256 aaveAllocation = (assets * s_allocationData.aaveAllocation) /
+            ALLOCATION_PRECISION;
 
         emit FundsInvested();
 
@@ -173,10 +212,10 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
     }
 
     // slither-disable-start reentrancy-benign
-    /* 
-     * @notice Unintelligently just withdraws everything, and then reinvests it all. 
-     * @notice Anyone can call this and pay the gas costs to rebalance the portfolio at any time. 
-     * @dev We understand that this is horrible for gas costs. 
+    /*
+     * @notice Unintelligently just withdraws everything, and then reinvests it all.
+     * @notice Anyone can call this and pay the gas costs to rebalance the portfolio at any time.
+     * @dev We understand that this is horrible for gas costs.
      */
     function rebalanceFunds() public isActive divestThenInvest nonReentrant {}
 
@@ -186,7 +225,11 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
      * We first divest our assets so we get a good idea of how many assets we hold.
      * Then, we redeem for the user, and automatically reinvest.
      */
-    function withdraw(uint256 assets, address receiver, address owner)
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    )
         public
         override(IERC4626, ERC4626)
         divestThenInvest
@@ -203,7 +246,11 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
      * We first divest our assets so we get a good idea of how many assets we hold.
      * Then, we redeem for the user, and automatically reinvest.
      */
-    function redeem(uint256 shares, address receiver, address owner)
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    )
         public
         override(IERC4626, ERC4626)
         divestThenInvest
@@ -213,6 +260,7 @@ contract VaultShares is ERC4626, IVaultShares, AaveAdapter, UniswapAdapter, Reen
         uint256 assets = super.redeem(shares, receiver, owner);
         return assets;
     }
+
     // slither-disable-end reentrancy-eth
     // slither-disable-end reentrancy-benign
 

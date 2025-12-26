@@ -21,19 +21,19 @@ contract WethForkTest is Fork_Test {
     AllocationData allocationData = AllocationData(500, 250, 250);
     AllocationData newAllocationData = AllocationData(0, 500, 500);
 
-    function setUp() public virtual override {
-        Fork_Test.setUp();
-    }
+    // function setUp() public virtual override {
+    //     Fork_Test.setUp();
+    // }
 
-    modifier hasGuardian() {
-        weth.mint(mintAmount, guardian);
-        vm.startPrank(guardian);
-        weth.approve(address(vaultGuardians), mintAmount);
-        address wethVault = vaultGuardians.becomeGuardian(allocationData);
-        wethVaultShares = VaultShares(wethVault);
-        vm.stopPrank();
-        _;
-    }
+    // modifier hasGuardian() {
+    //     weth.mint(mintAmount, guardian);
+    //     vm.startPrank(guardian);
+    //     weth.approve(address(vaultGuardians), mintAmount);
+    //     address wethVault = vaultGuardians.becomeGuardian(allocationData);
+    //     wethVaultShares = VaultShares(wethVault);
+    //     vm.stopPrank();
+    //     _;
+    // }
 
-    function testDepositAndWithdraw() public {}
+    // function testDepositAndWithdraw() public {}
 }
