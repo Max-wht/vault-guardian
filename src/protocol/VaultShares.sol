@@ -72,6 +72,7 @@ contract VaultShares is
     /**
      * @notice removes all supplied liquidity from Uniswap and supplied lending amount from Aave and then re-invests it back into them only if the vault is active
      */
+    //@audit MEV?
     modifier divestThenInvest() {
         uint256 uniswapLiquidityTokensBalance = i_uniswapLiquidityToken
             .balanceOf(address(this));
@@ -115,7 +116,7 @@ contract VaultShares is
     {
         i_guardian = constructorData.guardian;
         i_guardianAndDaoCut = constructorData.guardianAndDaoCut;
-        i_vaultGuardians = constructorData.vaultGuardians;
+        i_vaultGuardians = constructorData.vaultGuardians; //@note must include address(this)
         s_isActive = true;
         updateHoldingAllocation(constructorData.allocationData);
 
@@ -138,6 +139,7 @@ contract VaultShares is
      * @notice Users will not be able to invest in this vault, however, they will be able to withdraw their deposited assets
      */
     //? how x Vault :: y Guardian what is x and y?
+    //@note-answer: 1 guardian can have `WETH, USDC, LINK` vaults(<= 3)
     function setNotActive() public onlyVaultGuardians isActive {
         s_isActive = false;
         emit NoLongerActive();
@@ -186,8 +188,12 @@ contract VaultShares is
         }
 
         uint256 shares = previewDeposit(assets);
+
+        //@audit-high-overShareMinted
         _deposit(_msgSender(), receiver, assets, shares);
 
+        //@note mint shares to DAO and guardian
+        //? total in i_guardianAndDaoCut, or seperately?
         _mint(i_guardian, shares / i_guardianAndDaoCut);
         _mint(i_vaultGuardians, shares / i_guardianAndDaoCut);
 
@@ -225,6 +231,7 @@ contract VaultShares is
      * We first divest our assets so we get a good idea of how many assets we hold.
      * Then, we redeem for the user, and automatically reinvest.
      */
+    //@audit just to withdraw 1 wei will cost los of gas fee
     function withdraw(
         uint256 assets,
         address receiver,
@@ -232,6 +239,7 @@ contract VaultShares is
     )
         public
         override(IERC4626, ERC4626)
+        //@audit role check?
         divestThenInvest
         nonReentrant
         returns (uint256)
@@ -253,6 +261,7 @@ contract VaultShares is
     )
         public
         override(IERC4626, ERC4626)
+        //@audit-info follow CEI
         divestThenInvest
         nonReentrant
         returns (uint256)

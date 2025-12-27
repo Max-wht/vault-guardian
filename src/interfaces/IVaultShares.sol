@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IVaultShares is IERC4626, IVaultData {
     struct ConstructorData {
+        //? what is the diff of guardian and vaultGuardians?
         IERC20 asset;
         string vaultName;
         string vaultSymbol;

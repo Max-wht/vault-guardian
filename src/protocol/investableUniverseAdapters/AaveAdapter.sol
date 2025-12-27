@@ -21,6 +21,7 @@ contract AaveAdapter {
      * @param asset The vault's underlying asset token
      * @param amount The amount of vault's underlying asset token to invest
      */
+    //@follow stateless
     function _aaveInvest(IERC20 asset, uint256 amount) internal {
         bool succ = asset.approve(address(i_aavePool), amount);
         if (!succ) {
@@ -29,7 +30,8 @@ contract AaveAdapter {
         i_aavePool.supply({
             asset: address(asset),
             amount: amount,
-            onBehalfOf: address(this), // decides who get's Aave's aTokens for the investment. In this case, mint it to the vault
+            onBehalfOf: address(this),
+            // decides who get's Aave's aTokens for the investment. In this case, mint it to the vault
             referralCode: 0
         });
     }
@@ -39,6 +41,7 @@ contract AaveAdapter {
      * @param token The vault's underlying asset token to withdraw
      * @param amount The amount of vault's underlying asset token to withdraw
      */
+    //@follow why divest to the vault
     function _aaveDivest(
         IERC20 token,
         uint256 amount

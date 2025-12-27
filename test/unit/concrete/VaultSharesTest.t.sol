@@ -8,24 +8,27 @@ import {ERC20Mock} from "../../mocks/ERC20Mock.sol";
 import {VaultShares, IERC20} from "../../../src/protocol/VaultShares.sol";
 
 import {console} from "forge-std/console.sol";
+import {console2} from "forge-std/console2.sol";
 
 contract VaultSharesTest is Base_Test {
     uint256 mintAmount = 100 ether;
     address guardian = makeAddr("guardian");
     address user = makeAddr("user");
-    AllocationData allocationData = AllocationData(
-        500, // hold
-        250, // uniswap
-        250 // aave
-    );
+    AllocationData allocationData =
+        AllocationData(
+            500, // hold
+            250, // uniswap
+            250 // aave
+        );
     VaultShares public wethVaultShares;
     uint256 public defaultGuardianAndDaoCut = 1000;
 
-    AllocationData newAllocationData = AllocationData(
-        0, // hold
-        500, // uniswap
-        500 // aave
-    );
+    AllocationData newAllocationData =
+        AllocationData(
+            0, // hold
+            500, // uniswap
+            500 // aave
+        );
 
     function setUp() public override {
         Base_Test.setUp();
@@ -34,6 +37,7 @@ contract VaultSharesTest is Base_Test {
     modifier hasGuardian() {
         weth.mint(mintAmount, guardian);
         vm.startPrank(guardian);
+        //DAO
         weth.approve(address(vaultGuardians), mintAmount);
         address wethVault = vaultGuardians.becomeGuardian(allocationData);
         wethVaultShares = VaultShares(wethVault);
@@ -41,14 +45,89 @@ contract VaultSharesTest is Base_Test {
         _;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                               AUDIT TEST
+    //////////////////////////////////////////////////////////////*/
+    function testBecomeGuardian() public hasGuardian {
+        console2.log("weth.balanceOf(guardian)", weth.balanceOf(guardian)); //90eth
+        console2.log(
+            "wethVaultShares.balanceOf(guardian)",
+            wethVaultShares.balanceOf(guardian)
+        );
+        console2.log(
+            "wethVaultShares.balanceOf(address(vaultGuardians))",
+            wethVaultShares.balanceOf(address(vaultGuardians))
+        );
+        console2.log(
+            "wethVaultShares.totalSupply()",
+            wethVaultShares.totalSupply()
+        );
+        console2.log(
+            "wethVaultShares.balanceOf(user)",
+            wethVaultShares.balanceOf(user)
+        );
+    }
+
+    function testUserDepositsAndRedeem() public hasGuardian {
+        // initial statement
+        uint256 guardianBalanceStart = weth.balanceOf(guardian);
+        uint256 vaultGuardiansBalanceStart = weth.balanceOf(
+            address(vaultGuardians)
+        );
+
+        //DEPOSIT
+        weth.mint(mintAmount, user);
+        vm.startPrank(user);
+        weth.approve(address(wethVaultShares), mintAmount);
+        wethVaultShares.deposit(mintAmount, user);
+        vm.stopPrank();
+
+        //Console Statements after Deposit
+        console2.log("user shares:", wethVaultShares.balanceOf(user) / 1e16);
+        console2.log("user balance in weth:", weth.balanceOf(user) / 1e16);
+        console2.log(
+            "guardian shares:",
+            wethVaultShares.balanceOf(guardian) / 1e16
+        );
+        console2.log(
+            "vaultGuardians shares:",
+            wethVaultShares.balanceOf(address(vaultGuardians)) / 1e16
+        );
+
+        //REDEEM
+        vm.startPrank(user);
+        wethVaultShares.redeem(wethVaultShares.balanceOf(user), user, user);
+        vm.stopPrank();
+
+        //Console Statements after Redeem
+        uint256 userBalanceAfterRedeem = weth.balanceOf(user) / 1e16;
+        console2.log(
+            "user balance of weth after redeem:",
+            weth.balanceOf(user) / 1e16
+        );
+        console2.log(
+            "user shares after redeem:",
+            wethVaultShares.balanceOf(user) / 1e16
+        );
+
+        assert(userBalanceAfterRedeem < mintAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              ORIGIN TEST
+    //////////////////////////////////////////////////////////////*/
     function testSetupVaultShares() public hasGuardian {
         assertEq(wethVaultShares.getGuardian(), guardian);
-        assertEq(wethVaultShares.getGuardianAndDaoCut(), defaultGuardianAndDaoCut);
+        assertEq(
+            wethVaultShares.getGuardianAndDaoCut(),
+            defaultGuardianAndDaoCut
+        );
         assertEq(wethVaultShares.getVaultGuardians(), address(vaultGuardians));
         assertEq(wethVaultShares.getIsActive(), true);
         assertEq(wethVaultShares.getAaveAToken(), address(awethTokenMock));
         assertEq(
-            address(wethVaultShares.getUniswapLiquidtyToken()), uniswapFactoryMock.getPair(address(weth), address(weth))
+            address(wethVaultShares.getUniswapLiquidtyToken()),
+            uniswapFactoryMock.getPair(address(weth), address(weth))
         );
     }
 
@@ -60,14 +139,20 @@ contract VaultSharesTest is Base_Test {
 
     function testOnlyVaultGuardiansCanSetNotActive() public hasGuardian {
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(VaultShares.VaultShares__NotVaultGuardianContract.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VaultShares.VaultShares__NotVaultGuardianContract.selector
+            )
+        );
         wethVaultShares.setNotActive();
     }
 
     function testOnlyCanSetNotActiveIfActive() public hasGuardian {
         vm.startPrank(wethVaultShares.getVaultGuardians());
         wethVaultShares.setNotActive();
-        vm.expectRevert(abi.encodeWithSelector(VaultShares.VaultShares__NotActive.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(VaultShares.VaultShares__NotActive.selector)
+        );
         wethVaultShares.setNotActive();
         vm.stopPrank();
     }
@@ -75,33 +160,58 @@ contract VaultSharesTest is Base_Test {
     function testUpdateHoldingAllocation() public hasGuardian {
         vm.startPrank(wethVaultShares.getVaultGuardians());
         wethVaultShares.updateHoldingAllocation(newAllocationData);
-        assertEq(wethVaultShares.getAllocationData().holdAllocation, newAllocationData.holdAllocation);
-        assertEq(wethVaultShares.getAllocationData().uniswapAllocation, newAllocationData.uniswapAllocation);
-        assertEq(wethVaultShares.getAllocationData().aaveAllocation, newAllocationData.aaveAllocation);
+        assertEq(
+            wethVaultShares.getAllocationData().holdAllocation,
+            newAllocationData.holdAllocation
+        );
+        assertEq(
+            wethVaultShares.getAllocationData().uniswapAllocation,
+            newAllocationData.uniswapAllocation
+        );
+        assertEq(
+            wethVaultShares.getAllocationData().aaveAllocation,
+            newAllocationData.aaveAllocation
+        );
     }
 
-    function testOnlyVaultGuardiansCanUpdateAllocationData() public hasGuardian {
+    function testOnlyVaultGuardiansCanUpdateAllocationData()
+        public
+        hasGuardian
+    {
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(VaultShares.VaultShares__NotVaultGuardianContract.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VaultShares.VaultShares__NotVaultGuardianContract.selector
+            )
+        );
         wethVaultShares.updateHoldingAllocation(newAllocationData);
     }
 
     function testOnlyupdateAllocationDataWhenActive() public hasGuardian {
         vm.startPrank(wethVaultShares.getVaultGuardians());
         wethVaultShares.setNotActive();
-        vm.expectRevert(abi.encodeWithSelector(VaultShares.VaultShares__NotActive.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(VaultShares.VaultShares__NotActive.selector)
+        );
         wethVaultShares.updateHoldingAllocation(newAllocationData);
         vm.stopPrank();
     }
 
-    function testMustUpdateAllocationDataWithCorrectPrecision() public hasGuardian {
+    function testMustUpdateAllocationDataWithCorrectPrecision()
+        public
+        hasGuardian
+    {
         AllocationData memory badAllocationData = AllocationData(0, 200, 500);
-        uint256 totalBadAllocationData =
-            badAllocationData.holdAllocation + badAllocationData.aaveAllocation + badAllocationData.uniswapAllocation;
+        uint256 totalBadAllocationData = badAllocationData.holdAllocation +
+            badAllocationData.aaveAllocation +
+            badAllocationData.uniswapAllocation;
 
         vm.startPrank(wethVaultShares.getVaultGuardians());
         vm.expectRevert(
-            abi.encodeWithSelector(VaultShares.VaultShares__AllocationNot100Percent.selector, totalBadAllocationData)
+            abi.encodeWithSelector(
+                VaultShares.VaultShares__AllocationNot100Percent.selector,
+                totalBadAllocationData
+            )
         );
         wethVaultShares.updateHoldingAllocation(badAllocationData);
         vm.stopPrank();
@@ -116,18 +226,46 @@ contract VaultSharesTest is Base_Test {
         assert(wethVaultShares.balanceOf(user) > 0);
     }
 
-    function testUserDepositsFundsAndDaoAndGuardianGetShares() public hasGuardian {
+    function testUserDepositsFundsAndDaoAndGuardianGetShares()
+        public
+        hasGuardian
+    {
         uint256 startingGuardianBalance = wethVaultShares.balanceOf(guardian);
-        uint256 startingDaoBalance = wethVaultShares.balanceOf(address(vaultGuardians));
-
+        uint256 startingDaoBalance = wethVaultShares.balanceOf(
+            address(vaultGuardians)
+        );
         weth.mint(mintAmount, user);
         vm.startPrank(user);
-        console.log(wethVaultShares.totalSupply());
         weth.approve(address(wethVaultShares), mintAmount);
         wethVaultShares.deposit(mintAmount, user);
 
+        console2.log("startingGuardianBalance", startingGuardianBalance); //10.01
+        console2.log("startingDaoBalance", startingDaoBalance); // 0.01
+        console2.log(wethVaultShares.totalSupply()); // 277.754
+        console2.log(
+            "wethVaultShares.balanceOf(guardian)", //10.277
+            wethVaultShares.balanceOf(guardian) //0.277
+        );
+        console2.log(
+            "wethVaultShares.balanceOf(address(vaultGuardians))", // 0.276933333333333333
+            wethVaultShares.balanceOf(address(vaultGuardians))
+        );
+
         assert(wethVaultShares.balanceOf(guardian) > startingGuardianBalance);
-        assert(wethVaultShares.balanceOf(address(vaultGuardians)) > startingDaoBalance);
+        assert(
+            wethVaultShares.balanceOf(address(vaultGuardians)) >
+                startingDaoBalance
+        );
+
+        //the shares is devaluation
+        //@audit-poc-overShareMinted
+        uint256 actualSharesInWeth = wethVaultShares.redeem(
+            wethVaultShares.balanceOf(user),
+            user,
+            user
+        );
+        console2.log("actualSharesInWeth", actualSharesInWeth);
+        console2.log("weth.balanceOf(user)", weth.balanceOf(user));
     }
 
     modifier userIsInvested() {
@@ -139,19 +277,31 @@ contract VaultSharesTest is Base_Test {
         _;
     }
 
-    function testRebalanceResultsInTheSameOutcome() public hasGuardian userIsInvested {
-        uint256 startingUniswapLiquidityTokensBalance =
-            IERC20(wethVaultShares.getUniswapLiquidtyToken()).balanceOf(address(wethVaultShares));
-        uint256 startingAaveAtokensBalance = IERC20(wethVaultShares.getAaveAToken()).balanceOf(address(wethVaultShares));
+    function testRebalanceResultsInTheSameOutcome()
+        public
+        hasGuardian
+        userIsInvested
+    {
+        uint256 startingUniswapLiquidityTokensBalance = IERC20(
+            wethVaultShares.getUniswapLiquidtyToken()
+        ).balanceOf(address(wethVaultShares));
+        uint256 startingAaveAtokensBalance = IERC20(
+            wethVaultShares.getAaveAToken()
+        ).balanceOf(address(wethVaultShares));
 
         wethVaultShares.rebalanceFunds();
 
         assertEq(
-            IERC20(wethVaultShares.getUniswapLiquidtyToken()).balanceOf(address(wethVaultShares)),
+            IERC20(wethVaultShares.getUniswapLiquidtyToken()).balanceOf(
+                address(wethVaultShares)
+            ),
             startingUniswapLiquidityTokensBalance
         );
         assertEq(
-            IERC20(wethVaultShares.getAaveAToken()).balanceOf(address(wethVaultShares)), startingAaveAtokensBalance
+            IERC20(wethVaultShares.getAaveAToken()).balanceOf(
+                address(wethVaultShares)
+            ),
+            startingAaveAtokensBalance
         );
     }
 
@@ -176,6 +326,9 @@ contract VaultSharesTest is Base_Test {
         wethVaultShares.redeem(amoutToRedeem, user, user);
 
         assert(weth.balanceOf(user) > startingBalance);
-        assertEq(wethVaultShares.balanceOf(user), startingSharesBalance - amoutToRedeem);
+        assertEq(
+            wethVaultShares.balanceOf(user),
+            startingSharesBalance - amoutToRedeem
+        );
     }
 }

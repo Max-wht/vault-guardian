@@ -36,16 +36,36 @@ contract UniswapRouterMock is IUniswapV2Router01, ERC20Mock {
         address,
         uint256
     ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
-        ERC20Mock(tokenA).transferFrom(msg.sender, address(this), amountADesired);
-        ERC20Mock(tokenB).transferFrom(msg.sender, address(this), amountBDesired);
+        ERC20Mock(tokenA).transferFrom(
+            msg.sender,
+            address(this),
+            amountADesired
+        );
+        ERC20Mock(tokenB).transferFrom(
+            msg.sender,
+            address(this),
+            amountBDesired
+        );
+        //@audit-high-NonInitialized, always 0
+        //just for test
+        liquidity = amountADesired < amountBDesired
+            ? amountADesired
+            : amountBDesired;
+        //just for test
         _mint(msg.sender, liquidity);
-        return (amountADesired, amountBDesired, 0);
+
+        return (amountADesired, amountBDesired, liquidity);
     }
 
-    function removeLiquidity(address tokenA, address tokenB, uint256, uint256, uint256, address to, uint256)
-        external
-        returns (uint256 amountA, uint256 amountB)
-    {
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint256,
+        uint256,
+        uint256,
+        address to,
+        uint256
+    ) external returns (uint256 amountA, uint256 amountB) {
         uint256 tokenABalance = ERC20Mock(tokenA).balanceOf(address(this));
         uint256 tokenBBalance = ERC20Mock(tokenB).balanceOf(address(this));
 
