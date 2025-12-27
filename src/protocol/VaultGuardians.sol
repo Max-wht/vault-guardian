@@ -78,6 +78,7 @@ contract VaultGuardians is Ownable, VaultGuardiansBase {
      * @notice Updates the stake price for guardians.
      * @param newStakePrice The new stake price in wei
      */
+    //@follow centrolized?
     function updateGuardianStakePrice(
         uint256 newStakePrice
     ) external onlyOwner {

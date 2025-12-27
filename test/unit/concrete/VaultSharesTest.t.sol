@@ -111,6 +111,67 @@ contract VaultSharesTest is Base_Test {
         );
 
         assert(userBalanceAfterRedeem < mintAmount);
+
+        //todo how many usdc left
+    }
+
+    //@audit-poc
+    function testGuardianRedeemStack() public hasGuardian {
+        uint256 guardianBalanceStart = weth.balanceOf(guardian);
+        vm.startPrank(guardian);
+        wethVaultShares.redeem(
+            wethVaultShares.balanceOf(guardian),
+            guardian,
+            guardian
+        );
+        vm.stopPrank();
+        uint256 guardianBalanceAfterRedeem = weth.balanceOf(guardian);
+
+        console2.log("guardianBalanceStart:", guardianBalanceStart / 1e16);
+        console2.log(
+            "guardianBalanceAfterRedeem:",
+            guardianBalanceAfterRedeem / 1e16
+        );
+
+        assert(guardianBalanceAfterRedeem - guardianBalanceStart >= 10 ether);
+    }
+
+    function testGuardianMaliciousRedeem() public hasGuardian {
+        // lots of asset in vault
+        weth.mint(1000 ether, user);
+        vm.startPrank(user);
+        weth.approve(address(wethVaultShares), 1000 ether);
+        wethVaultShares.deposit(1000 ether, user);
+        vm.stopPrank();
+
+        console2.log("shares total:", wethVaultShares.totalSupply() / 1e16);
+        console2.log(
+            "guardian shares:",
+            wethVaultShares.balanceOf(guardian) / 1e16
+        );
+        console2.log("guardain balance: ", weth.balanceOf(guardian) / 1e16);
+
+        vm.startPrank(guardian);
+        wethVaultShares.redeem(
+            wethVaultShares.balanceOf(guardian),
+            guardian,
+            guardian
+        );
+        vm.stopPrank();
+
+        console2.log(
+            "guardian balance after:",
+            weth.balanceOf(guardian) / 1e16
+        );
+        console2.log("shares total:", wethVaultShares.totalSupply() / 1e16);
+        console2.log(
+            "guardian shares:",
+            wethVaultShares.balanceOf(guardian) / 1e16
+        );
+        console2.log(
+            "vaultGuardians shares:",
+            wethVaultShares.balanceOf(address(vaultGuardians)) / 1e16
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -238,34 +299,11 @@ contract VaultSharesTest is Base_Test {
         vm.startPrank(user);
         weth.approve(address(wethVaultShares), mintAmount);
         wethVaultShares.deposit(mintAmount, user);
-
-        console2.log("startingGuardianBalance", startingGuardianBalance); //10.01
-        console2.log("startingDaoBalance", startingDaoBalance); // 0.01
-        console2.log(wethVaultShares.totalSupply()); // 277.754
-        console2.log(
-            "wethVaultShares.balanceOf(guardian)", //10.277
-            wethVaultShares.balanceOf(guardian) //0.277
-        );
-        console2.log(
-            "wethVaultShares.balanceOf(address(vaultGuardians))", // 0.276933333333333333
-            wethVaultShares.balanceOf(address(vaultGuardians))
-        );
-
         assert(wethVaultShares.balanceOf(guardian) > startingGuardianBalance);
         assert(
             wethVaultShares.balanceOf(address(vaultGuardians)) >
                 startingDaoBalance
         );
-
-        //the shares is devaluation
-        //@audit-poc-overShareMinted
-        uint256 actualSharesInWeth = wethVaultShares.redeem(
-            wethVaultShares.balanceOf(user),
-            user,
-            user
-        );
-        console2.log("actualSharesInWeth", actualSharesInWeth);
-        console2.log("weth.balanceOf(user)", weth.balanceOf(user));
     }
 
     modifier userIsInvested() {

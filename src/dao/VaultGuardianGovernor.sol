@@ -41,4 +41,9 @@ contract VaultGuardianGovernor is
     {
         return super.quorum(blockNumber);
     }
+
+    /**
+     * propose()
+     * castVote()
+     */
 }

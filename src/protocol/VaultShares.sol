@@ -192,8 +192,6 @@ contract VaultShares is
         //@audit-high-overShareMinted
         _deposit(_msgSender(), receiver, assets, shares);
 
-        //@note mint shares to DAO and guardian
-        //? total in i_guardianAndDaoCut, or seperately?
         _mint(i_guardian, shares / i_guardianAndDaoCut);
         _mint(i_vaultGuardians, shares / i_guardianAndDaoCut);
 
@@ -252,6 +250,7 @@ contract VaultShares is
      * We first divest our assets so we get a good idea of how many assets we hold.
      * Then, we redeem for the user, and automatically reinvest.
      */
+    //@audit-HIGH-rolecheck, do not allow guardian to redeem its collateral
     function redeem(
         uint256 shares,
         address receiver,

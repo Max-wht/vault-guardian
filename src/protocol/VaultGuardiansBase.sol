@@ -268,6 +268,7 @@ contract VaultGuardiansBase is AStaticTokenData, IVaultData {
                            PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _quitGuardian(IERC20 token) private returns (uint256) {
+        //@audit only quit weth vault, not quit USDC vault
         IVaultShares tokenVault = IVaultShares(s_guardians[msg.sender][token]);
         s_guardians[msg.sender][token] = IVaultShares(address(0));
         emit GaurdianRemoved(msg.sender, token);
