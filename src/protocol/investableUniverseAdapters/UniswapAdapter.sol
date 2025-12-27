@@ -45,7 +45,6 @@ contract UniswapAdapter is AStaticUSDCData {
      * @param token The vault's underlying asset token
      * @param amount The amount of vault's underlying asset token to use for the investment
      */
-    //@audit-high-lockLiqidityInRouter
     function _uniswapInvest(IERC20 token, uint256 amount) internal {
         IERC20 counterPartyToken = token == i_weth ? i_tokenOne : i_weth;
         // We will do half in WETH and half in the token
@@ -105,7 +104,7 @@ contract UniswapAdapter is AStaticUSDCData {
 
     /**
      * @notice The LP tokens of the added liquidity are burnt
-     * @notice The other token (which isn't the vault's underlying asset token) is swapped for the vault's underlying asset token
+     * @notice The other token (which isn't the vault's underlying asset token) is wapped for the vault's underlying asset token
      * @param token The vault's underlying asset token
      * @param liquidityAmount The amount of LP tokens to burn
      */
@@ -120,13 +119,19 @@ contract UniswapAdapter is AStaticUSDCData {
                 tokenA: address(token),
                 tokenB: address(counterPartyToken),
                 liquidity: liquidityAmount,
-                //@audit-high-MEV-slipProtection
+                //@report[H-2]
                 amountAMin: 0,
                 amountBMin: 0,
                 to: address(this),
                 deadline: block.timestamp
             });
         s_pathArray = [address(counterPartyToken), address(token)];
+
+        //@report[H-3]
+        counterPartyToken.approve(
+            address(i_uniswapRouter),
+            counterPartyTokenAmount
+        );
         uint256[] memory amounts = i_uniswapRouter.swapExactTokensForTokens({
             amountIn: counterPartyTokenAmount,
             amountOutMin: 0,

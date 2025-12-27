@@ -72,7 +72,7 @@ contract VaultShares is
     /**
      * @notice removes all supplied liquidity from Uniswap and supplied lending amount from Aave and then re-invests it back into them only if the vault is active
      */
-    //@audit MEV?
+    //@report[H-1]
     modifier divestThenInvest() {
         uint256 uniswapLiquidityTokensBalance = i_uniswapLiquidityToken
             .balanceOf(address(this));
@@ -231,7 +231,6 @@ contract VaultShares is
      * We first divest our assets so we get a good idea of how many assets we hold.
      * Then, we redeem for the user, and automatically reinvest.
      */
-    //@audit just to withdraw 1 wei will cost los of gas fee
     function withdraw(
         uint256 assets,
         address receiver,
@@ -239,7 +238,6 @@ contract VaultShares is
     )
         public
         override(IERC4626, ERC4626)
-        //@audit role check?
         divestThenInvest
         nonReentrant
         returns (uint256)
@@ -261,7 +259,6 @@ contract VaultShares is
     )
         public
         override(IERC4626, ERC4626)
-        //@audit-info follow CEI
         divestThenInvest
         nonReentrant
         returns (uint256)

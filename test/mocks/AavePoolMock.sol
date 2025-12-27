@@ -31,6 +31,10 @@ contract AavePoolMock is IPool {
         address to
     ) external returns (uint256) {
         IERC20(asset).transfer(to, amount);
+        //@audit-burn-aTokens
+        address aToken = s_assetToAtoken[asset];
+        require(aToken != address(0), "AavePoolMock: aToken not found");
+        ERC20Mock(aToken).burn(amount, to);
         return amount;
     }
 

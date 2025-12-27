@@ -81,10 +81,13 @@ contract UniswapRouterMock is IUniswapV2Router01, ERC20Mock {
         address to,
         uint256
     ) external returns (uint256[] memory amounts) {
-        ERC20Mock(path[0]).transferFrom(msg.sender, address(this), amountInMax);
+        //@audit-wrong-logic
+        uint256 amountIn = amountOut;
+        ERC20Mock(path[0]).transferFrom(msg.sender, address(this), amountIn);
         ERC20Mock(path[1]).mint(amountOut, to);
         amounts = new uint256[](2);
-        amounts[0] = amountInMax;
+        amounts[0] = amountIn;
+        // amounts[0] = amountInMax; this is wrong
         amounts[1] = amountOut;
     }
 
@@ -95,11 +98,14 @@ contract UniswapRouterMock is IUniswapV2Router01, ERC20Mock {
         address to,
         uint256
     ) external returns (uint256[] memory amounts) {
+        //@audit-wrong-logic
+        uint256 amountOut = amountIn;
         ERC20Mock(path[0]).transferFrom(msg.sender, address(this), amountIn);
-        ERC20Mock(path[1]).mint(amountOutMin, to);
+        ERC20Mock(path[1]).mint(amountOut, to);
         amounts = new uint256[](2);
         amounts[0] = amountIn;
-        amounts[1] = amountOutMin;
+        // amounts[1] = amountOutMin; this is wrong
+        amounts[1] = amountOut;
     }
 
     // add this to be excluded from coverage report
