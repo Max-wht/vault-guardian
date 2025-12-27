@@ -19,7 +19,7 @@ contract AavePoolMock is IPool {
         uint16 /* referralCode */
     ) external {
         IERC20(asset).transferFrom(msg.sender, address(this), amount);
-        //@audit-aaveMock-never-mint-aTokens
+        //@report[L-1]
         address aToken = s_assetToAtoken[asset];
         require(aToken != address(0), "AavePoolMock: aToken not found");
         ERC20Mock(aToken).mint(amount, onBehalfOf);
@@ -31,7 +31,7 @@ contract AavePoolMock is IPool {
         address to
     ) external returns (uint256) {
         IERC20(asset).transfer(to, amount);
-        //@audit-burn-aTokens
+        //@report[L-1]
         address aToken = s_assetToAtoken[asset];
         require(aToken != address(0), "AavePoolMock: aToken not found");
         ERC20Mock(aToken).burn(amount, to);

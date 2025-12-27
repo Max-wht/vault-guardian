@@ -32,7 +32,7 @@
 
 ### [H-3]`UniswapAdapter::_uniswapDivest()`Missing Approving partyToken to the Vault before Swapping partyToken to Vault's Asset. This means that Vualt will never recived actual Asset.
 
-**Description:**The `_uniswapDivest` function performs a token swap using swapExactTokensForTokens, which requires the Uniswap router to have sufficient allowance for the input token.
+**Description:** The `_uniswapDivest` function performs a token swap using swapExactTokensForTokens, which requires the Uniswap router to have sufficient allowance for the input token.
 However, the function relies on a direct approve call immediately before the swap, without resetting the allowance or using a safe approval pattern.
 
 **impacts:** `_uniswapDivest` always reverts, because of `ERC20InsufficientAllowance`
@@ -46,12 +46,23 @@ change the `UniswapAddapter.sol`
 +    address(i_uniswapRouter),
 +    counterPartyTokenAmount
 + );
-
 ```
 
 ## MEDIUM
 
 ## LOW
+
+### [L-1]`AavePoolMock`AaveMock Never Mint aTokens, this is an error of logic
+
+**Description:** In Aave, depositing collateral (e.g., USDC) results in the minting of a corresponding aToken (aUSDC) to represent the deposited assets. However, the AaveMock implementation does not mint aTokens upon deposit.
+
+### [L-2]`UniswapRouterMock::addLiquidity()`Fails to initialize `liquidity`, causing LP-token to always be zero.
+
+**Description:** In Uniswap V2,the liquidity generated from a user deposit is calculated during `addLiquidity` process, and LP-tokens are minted to the user accordingly. However, this mock contract fails to initialize the liquidity, which means no matter what user deposit, the LP-token is zero forever.
+
+### [L-3]`UniswapRouterMock::swapTokensForExactTokens()` use `amountInMax` as the params to transferred, but `amountInMax` is used for slipProtection.
+
+**Description:** there are a wrong logic in `UniswapRouterMock::swapTokensForExactTokens()`, use `amountInMax` in the actual transfer
 
 ## GAS
 
